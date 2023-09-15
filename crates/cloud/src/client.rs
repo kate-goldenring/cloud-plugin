@@ -25,7 +25,8 @@ use cloud_openapi::{
         CreateAppCommand, CreateChannelCommand, CreateDeviceCodeCommand, CreateKeyValuePairCommand,
         CreateSqlDatabaseCommand, CreateVariablePairCommand, DeleteSqlDatabaseCommand,
         DeleteVariablePairCommand, DeviceCodeItem, EnvironmentVariableItem,
-        ExecuteSqlStatementCommand, GetChannelLogsVm, GetVariablesQuery, RefreshTokenCommand,
+        ExecuteSqlStatementCommand, GetChannelLogsVm, GetVariablesQuery, 
+        Link, Database as OpenAPIDatabase, RefreshTokenCommand,
         RegisterRevisionCommand, RevisionItemPage, TokenInfo,
     },
 };
@@ -33,8 +34,6 @@ use reqwest::header;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-
-use crate::mocks::AppLabel;
 
 const JSON_MIME_TYPE: &str = "application/json";
 
@@ -394,13 +393,13 @@ impl Client {
     pub async fn create_database(
         &self,
         name: String,
-        link: Option<AppLabel>,
+        link: Option<Link>,
     ) -> anyhow::Result<()> {
         api_sql_databases_create_post(
             &self.configuration,
             CreateSqlDatabaseCommand {
                 name,
-                app_id: Some(link.map(|l| l.app_id)),
+                link: link.map(|l| Box::new(l)),
             },
             None,
         )
@@ -435,8 +434,10 @@ impl Client {
 
     pub async fn get_database(&self, name: &str) -> anyhow::Result<Option<crate::mocks::Database>> {
         Ok(Some(crate::mocks::Database {
+            inner: OpenAPIDatabase {
             name: name.to_owned(),
             links: vec![],
+            }
         }))
     }
 

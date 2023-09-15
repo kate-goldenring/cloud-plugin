@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser};
 use cloud::client::Client as CloudClient;
 // use cloud_openapi::models::Database;
-use cloud::mocks::AppLabel;
+use cloud_openapi::models::Link;
 use cloud::mocks::Database as MockDatabase;
 use dialoguer::Input;
 
@@ -101,7 +101,7 @@ impl SqliteCommand {
                 let list = CloudClient::get_databases(&client)
                     .await
                     .context("Problem fetching databases")?;
-                if list.iter().any(|d| d.name == cmd.name) {
+                if list.iter().any(|d| d.inner.name == cmd.name) {
                     anyhow::bail!("Database {} already exists", cmd.name)
                 }
                 CloudClient::create_database(&client, cmd.name.clone(), None)
@@ -114,12 +114,12 @@ impl SqliteCommand {
                 let list = CloudClient::get_databases(&client)
                     .await
                     .context("Problem fetching databases")?;
-                let found = list.iter().find(|d| d.name == cmd.name);
+                let found = list.iter().find(|d| d.inner.name == cmd.name);
                 match found {
                     None => anyhow::bail!("No database found with name \"{}\"", cmd.name),
                     Some(db) => {
                         // TODO: Fail if apps exist that are currently using a database
-                        if cmd.yes || prompt_delete_database(&cmd.name, &db.links)? {
+                        if cmd.yes || prompt_delete_database(&cmd.name, &db.inner.links)? {
                             CloudClient::delete_database(&client, cmd.name.clone())
                                 .await
                                 .with_context(|| {
@@ -135,7 +135,7 @@ impl SqliteCommand {
                 let list = CloudClient::get_databases(&client)
                     .await
                     .context("Problem fetching databases")?;
-                if !list.iter().any(|d| d.name == cmd.name) {
+                if !list.iter().any(|d| d.inner.name == cmd.name) {
                     anyhow::bail!("No database found with name \"{}\"", cmd.name);
                 }
                 let statement = if let Some(path) = cmd.statement.strip_prefix('@') {
@@ -170,18 +170,18 @@ fn print_databases(
         return;
     }
     if let Some(name) = &database {
-        databases.retain(|db| db.name == *name);
+        databases.retain(|db| db.inner.name == *name);
     }
     struct DBLink {
         name: String,
-        link: AppLabel,
+        link: Link,
     }
-    let no_link_dbs: Vec<_> = databases.iter().filter(|db| db.links.is_empty()).collect();
+    let no_link_dbs: Vec<_> = databases.iter().filter(|db| db.inner.links.is_empty()).collect();
     let mut links: Vec<DBLink> = databases
         .iter()
         .flat_map(|db| {
-            db.links.iter().map(|l| DBLink {
-                name: db.name.clone(),
+            db.inner.links.iter().map(|l| DBLink {
+                name: db.inner.name.clone(),
                 link: l.clone(),
             })
         })
@@ -194,7 +194,7 @@ fn print_databases(
     let header: Vec<&str> = vec!["Database", "Link"];
     table.set_header(header);
     no_link_dbs.into_iter().for_each(|db| {
-        table.add_row(vec![db.name.clone(), String::from("-")]);
+        table.add_row(vec![db.inner.name.clone(), String::from("-")]);
     });
 
     if app.is_none() && database.is_none() {
@@ -218,7 +218,7 @@ fn print_databases(
     println!("{table}");
 }
 
-fn prompt_delete_database(database: &str, links: &[AppLabel]) -> std::io::Result<bool> {
+fn prompt_delete_database(database: &str, links: &[Link]) -> std::io::Result<bool> {
     let existing_links = links
         .iter()
         .map(|l| format!("{}:{}", l.app_name, l.label))

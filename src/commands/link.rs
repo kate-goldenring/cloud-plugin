@@ -4,8 +4,9 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser};
 use cloud::{
     client::Client as CloudClient,
-    mocks::{AppLabel, DatabaseLink},
+    mocks::DatabaseLink,
 };
+use cloud_openapi::models::Link;
 
 /// Manage how apps and resources are linked together
 #[derive(Parser, Debug)]
@@ -86,7 +87,7 @@ impl SqliteLinkCommand {
             }
             (None, None) => {
                 let link = DatabaseLink::new(
-                    AppLabel {
+                    Link {
                         app_id,
                         label: self.label,
                         app_name: self.app,

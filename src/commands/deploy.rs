@@ -5,9 +5,9 @@ use bindle::Id;
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use cloud::client::{Client as CloudClient, ConnectionConfig};
-use cloud::mocks::{self, AppLabel, Database as MockDatabase, DatabaseLink};
+use cloud::mocks::{self, Database as MockDatabase, DatabaseLink};
 use cloud_openapi::models::ChannelRevisionSelectionStrategy as CloudChannelRevisionSelectionStrategy;
-use cloud_openapi::models::Database;
+use cloud_openapi::models::{Database, Link};
 use rand::Rng;
 use semver::BuildMetadata;
 use sha2::{Digest, Sha256};
@@ -190,7 +190,7 @@ impl DeployCommand {
         let channel_id = match get_app_id_cloud(&client, &app_name).await? {
             Some(app_id) => {
                 for label in sqlite_labels_used(&cfg) {
-                    let app_label = AppLabel {
+                    let app_label = Link {
                         app_id,
                         label,
                         app_name: app_name.clone(),
@@ -283,7 +283,7 @@ impl DeployCommand {
 
                 for (database_to_link, label) in databases_to_link {
                     let link = DatabaseLink::new(
-                        AppLabel {
+                        Link {
                             label,
                             app_id,
                             app_name: app_name.clone(),
@@ -634,7 +634,7 @@ enum ExistingAppDatabaseSelection {
 async fn get_database_selection_for_existing_app(
     app_name: &str,
     client: &CloudClient,
-    app_label: &AppLabel,
+    app_label: &Link,
 ) -> Result<ExistingAppDatabaseSelection> {
     let databases = client.get_databases().await?;
     if databases.iter().any(|d| d.has_link(app_label)) {
@@ -680,7 +680,7 @@ fn prompt_database_selection(
             client,
             app_name,
             label,
-            databases.into_iter().map(|d| d.name).collect::<Vec<_>>(),
+            databases.into_iter().map(|d| d.inner.name).collect::<Vec<_>>(),
         ),
         1 => prompt_link_to_new_database(client, app_name, label),
         _ => bail!("Choose unavailable option"),
